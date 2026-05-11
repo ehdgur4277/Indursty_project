@@ -24,6 +24,7 @@ Whisper/finetune/output/
 
 # 오디오 출력 (생성물)
 VAD/output/
+data/*_vad.wav
 
 # Jupyter
 .ipynb_checkpoints/
