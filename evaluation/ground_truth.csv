@@ -1,0 +1,6 @@
+audio_path,ground_truth_text,ground_truth_task_id
+/data/dhpark/Indursty_project/data/Red_noisy.m4a,빨간 통 집어,TASK_PICK_RED
+/data/dhpark/Indursty_project/data/Yellow_noisy.m4a,노란 통 집어,TASK_PICK_YELLOW
+/data/dhpark/Indursty_project/data/voice_test.m4a,빨간 통 집어,TASK_PICK_RED
+/data/dhpark/Indursty_project/data/voice_test_yellow.m4a,노란 통 집어,TASK_PICK_YELLOW
+/data/dhpark/Indursty_project/data/yellow_dongmin.m4a,노란 통 집어,TASK_PICK_YELLOW
