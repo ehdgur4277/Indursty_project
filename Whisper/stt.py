@@ -22,6 +22,6 @@ def transcribe(audio: np.ndarray) -> str:
         audio,
         language="ko",
         beam_size=BEAM_SIZE,
-        vad_filter=False,
+        vad_filter=True,
     )
     return " ".join(seg.text for seg in segments).strip()
