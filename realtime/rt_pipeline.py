@@ -47,8 +47,9 @@ from audio_stream import CHUNK_SIZE, AudioStream, FileStream, NetworkStream  # n
 _KWS_WINDOW  = int(2.0 * SAMPLE_RATE)                          # KWS 2초 슬라이딩 윈도우
 _KWS_STRIDE  = max(1, int(0.5 * SAMPLE_RATE) // CHUNK_SIZE)    # 0.5초마다 KWS 검사
 _SILENCE_END = int(1.5 * SAMPLE_RATE)   # 1.5초 침묵이면 발화 종료
-_MIN_SPEECH  = int(0.4 * SAMPLE_RATE)   # 발화 최소 길이 (미만이면 무시)
+_MIN_SPEECH  = int(0.8 * SAMPLE_RATE)   # 발화 최소 길이 (미만이면 무시)
 _MAX_LISTEN  = int(8.0 * SAMPLE_RATE)   # 웨이크워드 후 최대 녹음 시간
+_FLUSH_SEC   = int(0.3 * SAMPLE_RATE)   # 웨이크워드 감지 후 버릴 잔여 오디오
 
 
 def _load_silero_vad():
@@ -212,6 +213,16 @@ class RealtimePipeline:
 
                     # ─── LISTENING ───────────────────────────────────────────
                     print("[웨이크] '피식아' 감지! 명령을 말씀하세요...")
+
+                    # 큐에 남은 잔여 오디오 플러시 (웨이크워드 발화 잔여음 제거)
+                    flushed = 0
+                    while flushed < _FLUSH_SEC:
+                        try:
+                            flushed += len(stream.read(timeout=0.1))
+                        except queue.Empty:
+                            break
+
+                    self.vad_model.reset_states()
                     audio = self._listen(stream)
 
                     if audio is None:
