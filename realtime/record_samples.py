@@ -23,7 +23,7 @@ import soundfile as sf
 SAMPLE_RATE     = 16_000
 CLIP_LEN        = 32_000   # 2초
 BYTES_PER_CHUNK = 512 * 4  # float32 * CHUNK_SIZE
-OUT_DIR         = os.path.join(os.path.dirname(os.path.dirname(__file__)), "KWS", "recordings")
+_REC_ROOT = os.path.join(os.path.dirname(os.path.dirname(__file__)), "KWS", "recordings")
 
 
 def recv_exact(sock, n):
@@ -57,15 +57,16 @@ def main():
     parser.add_argument("--port",  type=int, default=9877)
     args = parser.parse_args()
 
+    OUT_DIR = os.path.join(_REC_ROOT, args.type)
     os.makedirs(OUT_DIR, exist_ok=True)
 
     # 기존 파일 번호 이어서
-    existing = [f for f in os.listdir(OUT_DIR)
-                if f.startswith(f"{args.type}_rec_") and f.endswith(".wav")]
+    existing = [f for f in os.listdir(OUT_DIR) if f.endswith(".wav")]
     start_idx = len(existing) + 1
 
-    print(f"[서버] 포트 {args.port} 대기 중...")
-    print(f"[노트북] python3 mic_client.py bore.pub --port {args.port}\n")
+    print(f"[연구실 컴퓨터] 포트 {args.port} 대기 중...")
+    print(f"[연구실 컴퓨터] 별도 터미널: ~/bore local {args.port} --to bore.pub")
+    print(f"[노트북]        python3 mic_client.py bore.pub --port <번호>\n")
 
     server = socket.socket()
     server.setsockopt(socket.SOL_SOCKET, socket.SO_REUSEADDR, 1)
@@ -78,12 +79,12 @@ def main():
     try:
         for i in range(args.count):
             idx = start_idx + i
-            fname = f"{args.type}_rec_{idx}.wav"
+            fname = f"rec_{idx}.wav"
 
             if args.type == "pos":
-                print(f"[{i+1}/{args.count}] '피식아' 라고 말하세요 → Enter")
+                print(f"[{i+1}/{args.count}] [연구실 컴퓨터] Enter → [노트북] '피식아' 말하기")
             else:
-                print(f"[{i+1}/{args.count}] 아무 말 하지 말고 Enter (환경 소음)")
+                print(f"[{i+1}/{args.count}] [연구실 컴퓨터] Enter → 아무 말 하지 말기 (소음 녹음)")
 
             input()
             print("  녹음 중... (2초)")

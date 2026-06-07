@@ -34,10 +34,10 @@ EMBED_SHAPE  = (16, 96)
 SNR_LIST     = [5, 10, 15, 20]
 SPEED_RATIOS = [0.85, 0.95, 1.0, 1.05, 1.15]
 
-NEGATIVE_DIR  = os.path.join(_ROOT, "data", "tts")              # 명령어 TTS
-REAL_POS_DIR  = os.path.join(_ROOT, "KWS", "recordings")        # 실제 녹음 pos_*
-REAL_NEG_DIR  = os.path.join(_ROOT, "KWS", "recordings")        # 실제 녹음 neg_*
-CV_NEG_DIR    = os.path.join(_ROOT, "data", "common_voice_neg")  # zeroth_korean
+NEGATIVE_DIR  = os.path.join(_ROOT, "data", "tts")                    # 명령어 TTS
+REAL_POS_DIR  = os.path.join(_ROOT, "KWS", "recordings", "pos")       # 실제 녹음 positive
+REAL_NEG_DIR  = os.path.join(_ROOT, "KWS", "recordings", "neg")       # 실제 녹음 negative
+CV_NEG_DIR    = os.path.join(_ROOT, "data", "common_voice_neg")        # zeroth_korean
 
 
 # ── 유틸리티 ───────────────────────────────────────────────────────────────────
@@ -123,7 +123,7 @@ def build_positive(wake_word: str) -> list[np.ndarray]:
         real_files = [
             os.path.join(REAL_POS_DIR, f)
             for f in sorted(os.listdir(REAL_POS_DIR))
-            if f.startswith("pos_") and f.endswith(".wav")
+            if f.endswith(".wav")
         ]
         print(f"[POS] 실제 녹음 {len(real_files)}개 + augmentation 추가 중...")
         for path in real_files:
@@ -166,7 +166,7 @@ def build_negative() -> list[np.ndarray]:
         real_files = [
             os.path.join(REAL_NEG_DIR, f)
             for f in sorted(os.listdir(REAL_NEG_DIR))
-            if f.startswith("neg_") and f.endswith(".wav")
+            if f.endswith(".wav")
         ]
         print(f"[NEG] 실제 녹음 {len(real_files)}개 + augmentation 추가 중...")
         for path in real_files:
