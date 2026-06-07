@@ -219,8 +219,7 @@ class RealtimePipeline:
                     else:
                         kws_hit_count = 0
 
-                    # 2번 연속 감지돼야 진짜 웨이크워드로 인정
-                    if kws_hit_count < 2:
+                    if kws_hit_count < 1:
                         continue
                     kws_hit_count = 0
 
