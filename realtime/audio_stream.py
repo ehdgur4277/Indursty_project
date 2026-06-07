@@ -154,6 +154,14 @@ class NetworkStream:
         finally:
             self._q.put(None)   # 종료 신호
 
+    def send(self, message: str):
+        """노트북으로 텍스트 메시지 전송 (줄바꿈 구분)."""
+        if self._client_sock:
+            try:
+                self._client_sock.sendall((message + "\n").encode("utf-8"))
+            except OSError:
+                pass
+
     def start(self):
         import socket
         self._server_sock = socket.socket()

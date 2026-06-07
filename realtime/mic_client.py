@@ -16,6 +16,7 @@
 import argparse
 import socket
 import sys
+import threading
 import time
 
 import numpy as np
@@ -31,6 +32,23 @@ def list_devices():
     sys.exit(0)
 
 
+def _recv_loop(sock: socket.socket):
+    """서버에서 오는 결과 메시지를 수신해서 출력하는 스레드."""
+    buf = ""
+    while True:
+        try:
+            data = sock.recv(4096)
+            if not data:
+                break
+            buf += data.decode("utf-8", errors="ignore")
+            while "\n" in buf:
+                line, buf = buf.split("\n", 1)
+                if line.strip():
+                    print(line)
+        except OSError:
+            break
+
+
 def stream_mic(host: str, port: int, device=None):
     import sounddevice as sd
 
@@ -38,6 +56,10 @@ def stream_mic(host: str, port: int, device=None):
     with socket.socket() as sock:
         sock.connect((host, port))
         print(f"연결됨. 마이크 스트리밍 시작 (Ctrl+C로 종료)\n")
+
+        # 서버 결과 수신 스레드
+        recv_thread = threading.Thread(target=_recv_loop, args=(sock,), daemon=True)
+        recv_thread.start()
 
         def callback(indata, frames, time_info, status):
             audio = indata[:, 0].astype(np.float32)

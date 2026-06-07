@@ -81,11 +81,10 @@ class RealtimePipeline:
         with torch.no_grad():
             return float(self.vad_model(torch.from_numpy(chunk), SAMPLE_RATE).item())
 
-    # ── KWS 검사 (반복 호출이므로 콘솔 출력 억제) ──
+    # ── KWS 검사 ──
     @staticmethod
     def _check_kws(window: np.ndarray) -> bool:
-        with contextlib.redirect_stdout(io.StringIO()):
-            return detect_wake_word(window)
+        return detect_wake_word(window)
 
     # ── LISTENING: 발화 끝날 때까지 청크 수집 ───────
     def _listen(self, stream) -> "np.ndarray | None":
@@ -128,7 +127,7 @@ class RealtimePipeline:
         return audio if len(audio) >= _MIN_SPEECH else None
 
     # ── PROCESSING: 노이즈 제거 → STT → 파싱 ──────
-    def _process(self, audio: np.ndarray):
+    def _process(self, audio: np.ndarray, stream=None):
         dur = len(audio) / SAMPLE_RATE
         print(f"[처리 ] 발화 {dur:.1f}s 처리 중...")
 
@@ -142,14 +141,20 @@ class RealtimePipeline:
         normalized = normalize_korean_command(raw_text)
         result     = parse_command(normalized)
 
-        print("─" * 40)
-        print(f"  원문   : {raw_text}")
-        print(f"  정규화 : {normalized}")
-        print(f"  매핑   : {result['matched']}")
-        print(f"  유사도 : {result['similarity']}")
-        print(f"  상태   : {result['status']}")
-        print(f"  Task   : {result['task_id']}")
-        print("─" * 40 + "\n")
+        lines = [
+            "─" * 40,
+            f"  원문   : {raw_text}",
+            f"  매핑   : {result['matched']}",
+            f"  상태   : {result['status']}",
+            f"  Task   : {result['task_id']}",
+            "─" * 40,
+        ]
+        output = "\n".join(lines)
+        print(output)
+
+        # 노트북으로도 결과 전송
+        if stream is not None and hasattr(stream, "send"):
+            stream.send(output)
 
         return result["task_id"]
 
@@ -163,7 +168,7 @@ class RealtimePipeline:
                 print("[ 모드 ] KWS 건너뜀 — 바로 발화 수집 시작\n")
                 audio = self._listen(stream)
                 if audio is not None:
-                    self._process(audio)
+                    self._process(audio, stream)
                 else:
                     print("[  -  ] 발화를 감지하지 못했습니다.\n")
 
@@ -175,7 +180,7 @@ class RealtimePipeline:
 
                 while True:
                     try:
-                        chunk = stream.read(timeout=2.0)
+                        chunk = stream.read(timeout=30.0)
                     except queue.Empty:
                         print("[종료 ] 스트림 끝")
                         break
@@ -203,7 +208,7 @@ class RealtimePipeline:
                         continue
 
                     # ─── PROCESSING ──────────────────────────────────────────
-                    self._process(audio)
+                    self._process(audio, stream)
                     ring.clear()
                     print("[ 대기 ] 웨이크워드 '피식아'를 말해주세요...\n")
 
