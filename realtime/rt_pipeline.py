@@ -174,8 +174,9 @@ class RealtimePipeline:
 
             else:
                 # ─── IDLE: KWS 슬라이딩 윈도우 ──────────────────────────────
-                ring           = collections.deque(maxlen=_KWS_WINDOW)
-                chunks_elapsed = 0
+                ring            = collections.deque(maxlen=_KWS_WINDOW)
+                chunks_elapsed  = 0
+                kws_hit_count   = 0   # 연속 감지 횟수
                 print("[ 대기 ] 웨이크워드 '피식아'를 말해주세요...\n")
 
                 while True:
@@ -195,8 +196,15 @@ class RealtimePipeline:
                     if len(ring) < _KWS_WINDOW:
                         continue
 
-                    if not self._check_kws(np.array(ring, dtype=np.float32)):
+                    if self._check_kws(np.array(ring, dtype=np.float32)):
+                        kws_hit_count += 1
+                    else:
+                        kws_hit_count = 0
+
+                    # 2번 연속 감지돼야 진짜 웨이크워드로 인정
+                    if kws_hit_count < 2:
                         continue
+                    kws_hit_count = 0
 
                     # ─── LISTENING ───────────────────────────────────────────
                     print("[웨이크] '피식아' 감지! 명령을 말씀하세요...")
