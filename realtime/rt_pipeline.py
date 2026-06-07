@@ -189,9 +189,8 @@ class RealtimePipeline:
                     ring.extend(chunk)
                     chunks_elapsed += 1
 
-                    # VAD 게이트: 묵음이면 KWS 실행 안 함
+                    # VAD 게이트: 묵음이면 KWS 실행 안 함 (hit count는 유지)
                     if self._vad_prob(chunk) < VAD_THRESHOLD:
-                        kws_hit_count = 0
                         continue
 
                     if chunks_elapsed < _KWS_STRIDE:
