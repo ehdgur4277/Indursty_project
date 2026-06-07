@@ -69,7 +69,14 @@ class RealtimePipeline:
         print("[초기화] Silero VAD 모델 로딩...")
         self.vad_model   = _load_silero_vad()
         self.use_denoise = use_denoise
+        self._stream     = None
         print("[초기화] 완료. 파이프라인 준비됨\n")
+
+    # ── 서버 + 노트북 동시 출력 ─────────────────────
+    def _notify(self, msg: str):
+        print(msg)
+        if self._stream is not None and hasattr(self._stream, "send"):
+            self._stream.send(msg)
 
     # ── 청크 단위 VAD 확률 ───────────────────────
     def _vad_prob(self, chunk: np.ndarray) -> float:
@@ -191,46 +198,44 @@ class RealtimePipeline:
     def run(self, stream, skip_kws: bool = False):
         stream.start()
 
+        self._stream = stream
+
         try:
             if skip_kws:
-                # ─── 웨이크워드 없이 바로 명령어 수집 (테스트용) ─────────────
-                print("[ 모드 ] 웨이크워드 생략 — 바로 발화 수집\n")
+                self._notify("[ 모드 ] 웨이크워드 생략 — 바로 발화 수집\n")
                 audio = self._listen(stream)
                 if audio is not None:
                     self._process(audio, stream)
                 else:
-                    print("[  -  ] 발화를 감지하지 못했습니다.\n")
+                    self._notify("[  -  ] 발화를 감지하지 못했습니다.\n")
 
             else:
                 # ─── IDLE: VAD로 발화 감지 → Whisper로 "피식아" 확인 ─────────
-                print("[ 대기 ] '피식아'를 말해주세요...\n")
+                self._notify("[ 대기 ] '피식아'를 말해주세요...\n")
 
                 while True:
-                    # 발화 구간 수집
                     wake_audio = self._listen(stream)
 
                     if wake_audio is None:
                         try:
                             stream.read(timeout=30.0)
                         except queue.Empty:
-                            print("[종료 ] 스트림 끝")
+                            self._notify("[종료 ] 스트림 끝")
                             break
                         continue
 
-                    # Whisper로 "피식아" 확인
                     if not self._verify_wake_word(wake_audio):
-                        self._flush(stream)          # 검증 중 쌓인 오디오 버림
-                        print("[  -  ] '피식아' 아님, 다시 대기합니다.\n")
+                        self._flush(stream)
                         continue
 
                     # ─── LISTENING + PROCESSING (최대 2회 재시도) ────────────
-                    print("[웨이크] '피식아' 확인! 명령을 말씀하세요...")
+                    self._notify("[웨이크] '피식아' 확인! 명령을 말씀하세요...\n")
                     for attempt in range(2):
                         self.vad_model.reset_states()
                         audio = self._listen(stream)
 
                         if audio is None:
-                            print("[  -  ] 명령어를 듣지 못했습니다. 다시 말씀해주세요.\n")
+                            self._notify("[  -  ] 명령어를 듣지 못했습니다. 다시 말씀해주세요.\n")
                             continue
 
                         success = self._process(audio, stream)
@@ -239,9 +244,9 @@ class RealtimePipeline:
                         if success:
                             break
                         if attempt == 0:
-                            print("[  -  ] 인식 실패. 다시 말씀해주세요.\n")
+                            self._notify("[  -  ] 인식 실패. 다시 말씀해주세요.\n")
 
-                    print("[ 대기 ] '피식아'를 말해주세요...\n")
+                    self._notify("[ 대기 ] '피식아'를 말해주세요...\n")
 
         except KeyboardInterrupt:
             print("\n[종료] 파이프라인 중단")
