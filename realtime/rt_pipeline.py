@@ -41,9 +41,9 @@ from audio_stream import CHUNK_SIZE, AudioStream, FileStream, NetworkStream  # n
 # 상수
 # ──────────────────────────────────────────────
 _SILENCE_END = int(1.5 * SAMPLE_RATE)   # 1.5초 침묵이면 발화 종료
-_MIN_SPEECH  = int(0.8 * SAMPLE_RATE)   # 발화 최소 길이 (미만이면 무시)
-_MAX_LISTEN  = int(8.0 * SAMPLE_RATE)   # 웨이크워드 후 최대 녹음 시간
-_FLUSH_SEC   = int(0.3 * SAMPLE_RATE)   # 웨이크워드 감지 후 버릴 잔여 오디오
+_MIN_SPEECH  = int(0.8 * SAMPLE_RATE)    # 발화 최소 길이 (미만이면 무시)
+_MAX_LISTEN  = int(10.0 * SAMPLE_RATE)  # 명령어 대기 최대 시간
+_FLUSH_SEC   = int(0.3 * SAMPLE_RATE)   # 잔여 오디오 플러시 시간
 
 
 def _load_silero_vad():
@@ -224,7 +224,6 @@ class RealtimePipeline:
 
                     # ─── LISTENING: 명령어 수집 ──────────────────────────────
                     print("[웨이크] '피식아' 확인! 명령을 말씀하세요...")
-                    self._flush(stream)              # "피식아" 잔여음 버림
                     self.vad_model.reset_states()
                     audio = self._listen(stream)
 
