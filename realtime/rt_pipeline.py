@@ -87,6 +87,19 @@ class RealtimePipeline:
     def _check_kws(window: np.ndarray) -> bool:
         return detect_wake_word(window)
 
+    # ── Whisper로 웨이크워드 2차 검증 ──────────────
+    @staticmethod
+    def _verify_wake_word(window: np.ndarray) -> bool:
+        """KWS 감지 후 Whisper STT로 실제 '피식아'인지 확인."""
+        _WAKE_VARIANTS = [
+            "피식아", "피시가", "피시카", "피싱이야", "피직아",
+            "피식야", "비식아", "피식", "비싸", "pc가",
+        ]
+        text = transcribe(window).replace(" ", "").lower()
+        matched = any(v.replace(" ", "") in text for v in _WAKE_VARIANTS)
+        print(f"[검증 ] STT: '{text}'  → {'통과' if matched else '거부'}")
+        return matched
+
     # ── LISTENING: 발화 끝날 때까지 청크 수집 ───────
     def _listen(self, stream) -> "np.ndarray | None":
         """
@@ -211,8 +224,14 @@ class RealtimePipeline:
                         continue
                     kws_hit_count = 0
 
+                    # ─── Whisper 2차 검증 ────────────────────────────────────
+                    print("[검증 ] Whisper로 웨이크워드 확인 중...")
+                    if not self._verify_wake_word(np.array(ring, dtype=np.float32)):
+                        ring.clear()
+                        continue
+
                     # ─── LISTENING ───────────────────────────────────────────
-                    print("[웨이크] '피식아' 감지! 명령을 말씀하세요...")
+                    print("[웨이크] '피식아' 확인! 명령을 말씀하세요...")
 
                     # 큐에 남은 잔여 오디오 플러시 (웨이크워드 발화 잔여음 제거)
                     flushed = 0
