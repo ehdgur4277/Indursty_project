@@ -81,17 +81,24 @@ class RealtimePipeline:
     def _check_kws(window: np.ndarray) -> bool:
         return detect_wake_word(window)
 
-    # ── Whisper로 웨이크워드 2차 검증 ──────────────
+    # ── Whisper로 웨이크워드 검증 ──────────────────
     @staticmethod
-    def _verify_wake_word(window: np.ndarray) -> bool:
-        """KWS 감지 후 Whisper STT로 실제 '피식아'인지 확인."""
+    def _verify_wake_word(audio: np.ndarray) -> bool:
+        """Whisper STT로 '피식아'인지 확인."""
         _WAKE_VARIANTS = [
             "피식아", "피시가", "피시카", "피싱이야", "피직아",
             "피식야", "비식아", "피식", "비싸", "pc가",
         ]
-        text = transcribe(window).replace(" ", "").lower()
+        # 음량이 너무 작으면 Whisper 호출 없이 거부
+        rms = float(np.sqrt(np.mean(audio ** 2)))
+        print(f"[검증 ] 음량 RMS={rms:.4f}", end="  ")
+        if rms < 0.01:
+            print("→ 너무 조용함, 거부")
+            return False
+
+        text = transcribe(audio).replace(" ", "").lower()
         matched = any(v.replace(" ", "") in text for v in _WAKE_VARIANTS)
-        print(f"[검증 ] STT: '{text}'  → {'통과' if matched else '거부'}")
+        print(f"STT: '{text}'  → {'통과' if matched else '거부'}")
         return matched
 
     # ── 스트림 버퍼 비우기 ────────────────────────────
