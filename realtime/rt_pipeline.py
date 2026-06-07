@@ -18,9 +18,6 @@
     python3 rt_pipeline.py --no_denoise
 """
 
-import collections
-import contextlib
-import io
 import os
 import queue
 import sys
@@ -35,7 +32,6 @@ sys.path.insert(0, os.path.join(_ROOT, "DeepFilterNet"))
 sys.path.insert(0, os.path.dirname(os.path.abspath(__file__)))
 
 from config import SAMPLE_RATE, VAD_THRESHOLD  # noqa: E402
-from kws import detect_wake_word  # noqa: E402
 from stt import transcribe  # noqa: E402
 from denoise import denoise  # noqa: E402
 from command_parser import normalize_korean_command, parse_command  # noqa: E402
@@ -44,8 +40,6 @@ from audio_stream import CHUNK_SIZE, AudioStream, FileStream, NetworkStream  # n
 # ──────────────────────────────────────────────
 # 상수
 # ──────────────────────────────────────────────
-_KWS_WINDOW  = int(2.0 * SAMPLE_RATE)                          # KWS 2초 슬라이딩 윈도우
-_KWS_STRIDE  = max(1, int(0.5 * SAMPLE_RATE) // CHUNK_SIZE)    # 0.5초마다 KWS 검사
 _SILENCE_END = int(1.5 * SAMPLE_RATE)   # 1.5초 침묵이면 발화 종료
 _MIN_SPEECH  = int(0.8 * SAMPLE_RATE)   # 발화 최소 길이 (미만이면 무시)
 _MAX_LISTEN  = int(8.0 * SAMPLE_RATE)   # 웨이크워드 후 최대 녹음 시간
@@ -178,8 +172,8 @@ class RealtimePipeline:
 
         try:
             if skip_kws:
-                # ─── KWS 없이 바로 LISTENING ─────────────────────────────────
-                print("[ 모드 ] KWS 건너뜀 — 바로 발화 수집 시작\n")
+                # ─── 웨이크워드 없이 바로 명령어 수집 (테스트용) ─────────────
+                print("[ 모드 ] 웨이크워드 생략 — 바로 발화 수집\n")
                 audio = self._listen(stream)
                 if audio is not None:
                     self._process(audio, stream)
@@ -187,71 +181,39 @@ class RealtimePipeline:
                     print("[  -  ] 발화를 감지하지 못했습니다.\n")
 
             else:
-                # ─── IDLE: KWS 슬라이딩 윈도우 ──────────────────────────────
-                ring            = collections.deque(maxlen=_KWS_WINDOW)
-                chunks_elapsed  = 0
-                kws_hit_count   = 0   # 연속 감지 횟수
-                print("[ 대기 ] 웨이크워드 '피식아'를 말해주세요...\n")
+                # ─── IDLE: VAD로 발화 감지 → Whisper로 "피식아" 확인 ─────────
+                print("[ 대기 ] '피식아'를 말해주세요...\n")
 
                 while True:
-                    try:
-                        chunk = stream.read(timeout=30.0)
-                    except queue.Empty:
-                        print("[종료 ] 스트림 끝")
-                        break
+                    # 발화 구간 수집
+                    wake_audio = self._listen(stream)
 
-                    ring.extend(chunk)
-                    chunks_elapsed += 1
-
-                    # VAD 게이트: 묵음이면 KWS 실행 안 함 (hit count는 유지)
-                    if self._vad_prob(chunk) < VAD_THRESHOLD:
-                        continue
-
-                    if chunks_elapsed < _KWS_STRIDE:
-                        continue
-                    chunks_elapsed = 0
-
-                    if len(ring) < _KWS_WINDOW:
-                        continue
-
-                    if self._check_kws(np.array(ring, dtype=np.float32)):
-                        kws_hit_count += 1
-                    else:
-                        kws_hit_count = 0
-
-                    if kws_hit_count < 1:
-                        continue
-                    kws_hit_count = 0
-
-                    # ─── Whisper 2차 검증 ────────────────────────────────────
-                    print("[검증 ] Whisper로 웨이크워드 확인 중...")
-                    if not self._verify_wake_word(np.array(ring, dtype=np.float32)):
-                        ring.clear()
-                        continue
-
-                    # ─── LISTENING ───────────────────────────────────────────
-                    print("[웨이크] '피식아' 확인! 명령을 말씀하세요...")
-
-                    # 큐에 남은 잔여 오디오 플러시 (웨이크워드 발화 잔여음 제거)
-                    flushed = 0
-                    while flushed < _FLUSH_SEC:
+                    if wake_audio is None:
                         try:
-                            flushed += len(stream.read(timeout=0.1))
+                            stream.read(timeout=30.0)
                         except queue.Empty:
+                            print("[종료 ] 스트림 끝")
                             break
+                        continue
 
+                    # Whisper로 "피식아" 확인
+                    if not self._verify_wake_word(wake_audio):
+                        print("[  -  ] '피식아' 아님, 다시 대기합니다.\n")
+                        continue
+
+                    # ─── LISTENING: 명령어 수집 ──────────────────────────────
+                    print("[웨이크] '피식아' 확인! 명령을 말씀하세요...")
                     self.vad_model.reset_states()
                     audio = self._listen(stream)
 
                     if audio is None:
-                        print("[  -  ] 발화 없음 또는 너무 짧음, 다시 대기합니다.\n")
-                        ring.clear()
+                        print("[  -  ] 명령어 없음, 다시 대기합니다.\n")
+                        print("[ 대기 ] '피식아'를 말해주세요...\n")
                         continue
 
                     # ─── PROCESSING ──────────────────────────────────────────
                     self._process(audio, stream)
-                    ring.clear()
-                    print("[ 대기 ] 웨이크워드 '피식아'를 말해주세요...\n")
+                    print("[ 대기 ] '피식아'를 말해주세요...\n")
 
         except KeyboardInterrupt:
             print("\n[종료] 파이프라인 중단")
