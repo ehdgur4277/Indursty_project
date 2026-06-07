@@ -1,7 +1,5 @@
 """
-KWS (Keyword Wake Word Spotting)
-
-faster-whisper tiny 모델로 오디오에서 웨이크 워드("피식아") 감지.
+KWS (Keyword Wake Word Spotting) — openWakeWord 기반
 
 사용법:
     from kws import detect_wake_word
@@ -11,77 +9,61 @@ faster-whisper tiny 모델로 오디오에서 웨이크 워드("피식아") 감�
 import os
 import sys
 import numpy as np
-from faster_whisper import WhisperModel
+import onnxruntime as ort
 
 sys.path.insert(0, os.path.join(os.path.dirname(os.path.dirname(__file__)), "Whisper"))
-from config import WAKE_WORD, KWS_THRESHOLD, KWS_MODEL_SIZE, DEVICE, COMPUTE_TYPE
+from config import WAKE_WORD, KWS_THRESHOLD
+
+from openwakeword.utils import AudioFeatures
+
+_ONNX_PATH = os.path.join(os.path.dirname(__file__), "oww_model", f"{WAKE_WORD}.onnx")
+_CLIP_LEN   = 32000   # 2초
+
+_af:      AudioFeatures | None = None
+_session: ort.InferenceSession | None = None
 
 
-_model: WhisperModel | None = None
+def _get_model():
+    global _af, _session
+    if _af is None:
+        _af = AudioFeatures()
+    if _session is None:
+        if not os.path.exists(_ONNX_PATH):
+            raise FileNotFoundError(
+                f"ONNX 모델 없음: {_ONNX_PATH}\n"
+                "KWS/train_oww.py를 먼저 실행하세요."
+            )
+        _session = ort.InferenceSession(_ONNX_PATH, providers=["CPUExecutionProvider"])
+    return _af, _session
 
 
-def _get_model() -> WhisperModel:
-    global _model
-    if _model is None:
-        _model = WhisperModel(KWS_MODEL_SIZE, device=DEVICE, compute_type=COMPUTE_TYPE)
-    return _model
-
-
-def _levenshtein(a: str, b: str) -> int:
-    m, n = len(a), len(b)
-    dp = list(range(n + 1))
-    for i in range(1, m + 1):
-        prev, dp[0] = dp[:], i
-        for j in range(1, n + 1):
-            dp[j] = prev[j - 1] if a[i - 1] == b[j - 1] else 1 + min(prev[j], dp[j - 1], prev[j - 1])
-    return dp[n]
-
-
-def _similarity(a: str, b: str) -> float:
-    a, b = a.replace(" ", ""), b.replace(" ", "")
-    if not a and not b:
-        return 1.0
-    dist = _levenshtein(a, b)
-    return 1.0 - dist / max(len(a), len(b))
-
-
-def detect_wake_word(audio: np.ndarray) -> bool:
+def detect_wake_word(audio: np.ndarray, threshold: float = KWS_THRESHOLD) -> bool:
     """
     오디오에서 웨이크 워드 감지.
 
     Args:
         audio: float32 np.ndarray, mono, 16kHz
+        threshold: 감지 임계값 (0~1, 높을수록 엄격)
 
     Returns:
-        True if wake word detected, False otherwise
+        True if wake word detected
     """
-    model = _get_model()
-    segments, _ = model.transcribe(audio, language="ko", beam_size=1)
-    text = " ".join(seg.text for seg in segments).strip()
-    print(f"[KWS ] 인식 텍스트: '{text}'")
+    af, session = _get_model()
 
-    normalized = text.replace(" ", "")
-    wake = WAKE_WORD.replace(" ", "")
+    # 클립 길이 맞추기 (패딩 or 크롭)
+    if len(audio) < _CLIP_LEN:
+        audio = np.pad(audio, (0, _CLIP_LEN - len(audio)))
+    else:
+        audio = audio[:_CLIP_LEN]
 
-    # 완전 포함 우선 확인
-    if wake in normalized:
-        print(f"[KWS ] 웨이크 워드 감지 (exact match)")
-        return True
+    # float32 → int16
+    audio_int16 = (np.clip(audio, -1.0, 1.0) * 32767).astype(np.int16)
+    batch = audio_int16[np.newaxis, :]   # (1, CLIP_LEN)
 
-    # 슬라이딩 윈도우로 부분 유사도 확인 (wake word 길이 기준)
-    wlen = len(wake)
-    best = 0.0
-    for i in range(len(normalized) - wlen + 1):
-        window = normalized[i: i + wlen]
-        sim = _similarity(wake, window)
-        if sim > best:
-            best = sim
+    emb   = np.array(af.embed_clips(batch), dtype=np.float32)  # (1, 16, 96)
+    score = session.run(None, {"input": emb})[0][0]             # scalar
 
-    # 전체 텍스트와의 유사도도 비교
-    full_sim = _similarity(wake, normalized)
-    best = max(best, full_sim)
-
-    detected = best >= KWS_THRESHOLD
-    status = f"감지 (유사도 {best:.2f})" if detected else f"미감지 (유사도 {best:.2f})"
-    print(f"[KWS ] {status}")
+    detected = float(score) >= threshold
+    print(f"[KWS ] score={score:.3f}  threshold={threshold}  "
+          f"{'감지' if detected else '미감지'}")
     return detected

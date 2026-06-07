@@ -1,5 +1,5 @@
 """
-전체 파이프라인: 오디오 파일 → DeepFilterNet → KWS → VAD → Whisper STT → Task ID
+전체 파이프라인: 오디오 파일 → VAD → KWS → Whisper STT → Task ID
 
 사용법:
     python3 pipeline.py
@@ -13,12 +13,10 @@ import sys
 
 _ROOT = os.path.dirname(os.path.dirname(__file__))
 sys.path.insert(0, os.path.join(_ROOT, "Whisper"))
-sys.path.insert(0, os.path.join(_ROOT, "DeepFilterNet"))
 sys.path.insert(0, os.path.join(_ROOT, "KWS"))
 
 from config import AUDIO_PATH
 from audio_loader import load_audio
-from denoise import denoise
 from kws import detect_wake_word
 from vad import extract_speech
 from stt import transcribe
@@ -30,9 +28,6 @@ def run(audio_path: str, skip_kws: bool = False) -> str:
 
     print("[로드] 오디오 변환 중...")
     audio = load_audio(audio_path)
-
-    print("[DFN ] 노이즈 제거 중...")
-    audio = denoise(audio)
 
     if not skip_kws:
         print("[KWS ] 웨이크 워드 감지 중...")

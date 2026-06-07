@@ -13,47 +13,53 @@ STT 결과 → 가장 가까운 유효 명령어 매핑 → Task ID
 # =============================================================================
 
 VALID_COMMANDS = [
-    "빨간 통 집어",
-    "노란 통 집어",
-    "박스 집어",
-    "왼쪽 빨간 통 집어",
-    "오른쪽 빨간 통 집어",
-    "왼쪽 노란 통 집어",
-    "오른쪽 노란 통 집어",
-    "빨간 통 왼쪽으로 집어",
-    "빨간 통 오른쪽으로 집어",
-    "노란 통 왼쪽으로 집어",
-    "노란 통 오른쪽으로 집어",
-    "빨간 통 옮겨",
-    "노란 통 옮겨",
-    "박스 옮겨",
+    "빨간색 박스 집어",
+    "파란색 박스 집어",
+    "초록색 박스 집어",
+    "빨간색 박스 넣어",
+    "파란색 박스 넣어",
+    "초록색 박스 넣어",
+    "빨간색 박스 집어서 넣어",
+    "파란색 박스 집어서 넣어",
+    "초록색 박스 집어서 넣어",
 ]
 
 # 명령어 → Task ID 직접 매핑
 COMMAND_TO_TASK = {
-    "빨간 통 집어":           "TASK_PICK_RED",
-    "노란 통 집어":           "TASK_PICK_YELLOW",
-    "박스 집어":              "TASK_PICK_BOX",
-    "왼쪽 빨간 통 집어":      "TASK_PICK_RED_LEFT",
-    "오른쪽 빨간 통 집어":    "TASK_PICK_RED_RIGHT",
-    "왼쪽 노란 통 집어":      "TASK_PICK_YELLOW_LEFT",
-    "오른쪽 노란 통 집어":    "TASK_PICK_YELLOW_RIGHT",
-    "빨간 통 왼쪽으로 집어":  "TASK_PICK_RED_LEFT",
-    "빨간 통 오른쪽으로 집어":"TASK_PICK_RED_RIGHT",
-    "노란 통 왼쪽으로 집어":  "TASK_PICK_YELLOW_LEFT",
-    "노란 통 오른쪽으로 집어":"TASK_PICK_YELLOW_RIGHT",
-    "빨간 통 옮겨":           "TASK_MOVE_RED",
-    "노란 통 옮겨":           "TASK_MOVE_YELLOW",
-    "박스 옮겨":              "TASK_MOVE_BOX",
+    "빨간색 박스 집어":         "TASK_PICK_RED_BOX",
+    "파란색 박스 집어":         "TASK_PICK_BLUE_BOX",
+    "초록색 박스 집어":         "TASK_PICK_GREEN_BOX",
+    "빨간색 박스 넣어":         "TASK_PUT_RED_BOX",
+    "파란색 박스 넣어":         "TASK_PUT_BLUE_BOX",
+    "초록색 박스 넣어":         "TASK_PUT_GREEN_BOX",
+    "빨간색 박스 집어서 넣어":  "TASK_PICK_PUT_RED_BOX",
+    "파란색 박스 집어서 넣어":  "TASK_PICK_PUT_BLUE_BOX",
+    "초록색 박스 집어서 넣어":  "TASK_PICK_PUT_GREEN_BOX",
 }
 
 FUZZY_THRESHOLD = 0.5  # 유사도 이 미만이면 매핑 실패로 처리
 
 # =============================================================================
-# 경량 전처리 (공백 정리만 — 오인식 패턴 등록 불필요)
+# 전처리
 # =============================================================================
 
+# "피식아"의 STT 오인식 패턴 — 텍스트 앞에 붙으면 제거
+_WAKE_WORD_PATTERNS = [
+    "피식아", "피시가", "피시카", "피싱이야", "PC가", "pc가",
+    "비싸", "피직아", "피식야", "비식아", "피식",
+]
+
+def _strip_wake_word(text: str) -> str:
+    """텍스트 앞에 붙은 웨이크 워드 오인식 패턴 제거."""
+    t = text.strip()
+    for pat in _WAKE_WORD_PATTERNS:
+        if t.lower().startswith(pat.lower()):
+            t = t[len(pat):].lstrip(" ,?!.")
+            break
+    return t
+
 def normalize_korean_command(text: str) -> str:
+    text = _strip_wake_word(text)
     return " ".join(text.strip().split())
 
 # =============================================================================

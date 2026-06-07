@@ -1,0 +1,47 @@
+# ───────────────────────────────────────────────
+# 1. 시스템 패키지 (pip 설치 전에 먼저)
+#
+#   Ubuntu/Debian:
+#     sudo apt install ffmpeg portaudio19-dev
+#
+#   macOS:
+#     brew install ffmpeg portaudio
+#
+#   Windows:
+#     winget install ffmpeg
+#     portaudio는 아래 sounddevice 가 자동 포함
+# ───────────────────────────────────────────────
+
+# ───────────────────────────────────────────────
+# 2. PyTorch — GPU/CPU 환경에 맞게 한 줄만 선택
+#
+#   GPU (CUDA 11.8):
+#     pip install torch==2.0.1+cu118 torchaudio==2.0.2+cu118 \
+#                 --index-url https://download.pytorch.org/whl/cu118
+#
+#   GPU (CUDA 12.1):
+#     pip install torch==2.1.0+cu121 torchaudio==2.1.0+cu121 \
+#                 --index-url https://download.pytorch.org/whl/cu121
+#
+#   CPU only:
+#     pip install torch==2.1.0 torchaudio==2.1.0 \
+#                 --index-url https://download.pytorch.org/whl/cpu
+# ───────────────────────────────────────────────
+
+# STT
+faster-whisper==1.2.1
+ctranslate2==4.7.1
+
+# KWS (웨이크워드)
+openwakeword==0.6.0
+onnxruntime==1.24.4
+
+# 노이즈 제거
+deepfilternet==0.5.6
+
+# 오디오 입출력
+sounddevice==0.5.5
+
+# 공통
+numpy==1.26.4
+scipy==1.17.1
