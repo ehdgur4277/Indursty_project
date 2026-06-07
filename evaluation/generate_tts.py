@@ -21,22 +21,9 @@ except ImportError:
     print("gTTS 미설치: pip install gtts")
     sys.exit(1)
 
-COMMAND_TO_TASK = {
-    "빨간 통 집어":            "TASK_PICK_RED",
-    "노란 통 집어":            "TASK_PICK_YELLOW",
-    "박스 집어":               "TASK_PICK_BOX",
-    "왼쪽 빨간 통 집어":       "TASK_PICK_RED_LEFT",
-    "오른쪽 빨간 통 집어":     "TASK_PICK_RED_RIGHT",
-    "왼쪽 노란 통 집어":       "TASK_PICK_YELLOW_LEFT",
-    "오른쪽 노란 통 집어":     "TASK_PICK_YELLOW_RIGHT",
-    "빨간 통 왼쪽으로 집어":   "TASK_PICK_RED_LEFT",
-    "빨간 통 오른쪽으로 집어": "TASK_PICK_RED_RIGHT",
-    "노란 통 왼쪽으로 집어":   "TASK_PICK_YELLOW_LEFT",
-    "노란 통 오른쪽으로 집어": "TASK_PICK_YELLOW_RIGHT",
-    "빨간 통 옮겨":            "TASK_MOVE_RED",
-    "노란 통 옮겨":            "TASK_MOVE_YELLOW",
-    "박스 옮겨":               "TASK_MOVE_BOX",
-}
+_ROOT = os.path.dirname(os.path.dirname(__file__))
+sys.path.insert(0, os.path.join(_ROOT, "Whisper"))
+from command_parser import COMMAND_TO_TASK
 
 
 def _to_filename(cmd: str) -> str:
