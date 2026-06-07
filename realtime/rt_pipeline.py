@@ -155,7 +155,8 @@ class RealtimePipeline:
         return audio if len(audio) >= _MIN_SPEECH else None
 
     # ── PROCESSING: 노이즈 제거 → STT → 파싱 ──────
-    def _process(self, audio: np.ndarray, stream=None):
+    def _process(self, audio: np.ndarray, stream=None) -> bool:
+        """처리 후 성공 여부 반환 (True=성공, False=인식 실패)"""
         dur = len(audio) / SAMPLE_RATE
         print(f"[처리 ] 발화 {dur:.1f}s 처리 중...")
 
@@ -184,7 +185,7 @@ class RealtimePipeline:
         if stream is not None and hasattr(stream, "send"):
             stream.send(output)
 
-        return result["task_id"]
+        return result["status"] == "SUCCESS"
 
     # ── 메인 루프 ────────────────────────────────
     def run(self, stream, skip_kws: bool = False):
@@ -222,19 +223,24 @@ class RealtimePipeline:
                         print("[  -  ] '피식아' 아님, 다시 대기합니다.\n")
                         continue
 
-                    # ─── LISTENING: 명령어 수집 ──────────────────────────────
+                    # ─── LISTENING + PROCESSING (최대 2회 재시도) ────────────
                     print("[웨이크] '피식아' 확인! 명령을 말씀하세요...")
-                    self.vad_model.reset_states()
-                    audio = self._listen(stream)
+                    for attempt in range(2):
+                        self.vad_model.reset_states()
+                        audio = self._listen(stream)
 
-                    if audio is None:
-                        print("[  -  ] 명령어 없음, 다시 대기합니다.\n")
-                        print("[ 대기 ] '피식아'를 말해주세요...\n")
-                        continue
+                        if audio is None:
+                            print("[  -  ] 명령어를 듣지 못했습니다. 다시 말씀해주세요.\n")
+                            continue
 
-                    # ─── PROCESSING ──────────────────────────────────────────
-                    self._process(audio, stream)
-                    self._flush(stream)              # 처리 중 쌓인 오디오 버림
+                        success = self._process(audio, stream)
+                        self._flush(stream)
+
+                        if success:
+                            break
+                        if attempt == 0:
+                            print("[  -  ] 인식 실패. 다시 말씀해주세요.\n")
+
                     print("[ 대기 ] '피식아'를 말해주세요...\n")
 
         except KeyboardInterrupt:
