@@ -92,7 +92,7 @@ class RealtimePipeline:
         # 음량이 너무 작으면 Whisper 호출 없이 거부
         rms = float(np.sqrt(np.mean(audio ** 2)))
         print(f"[검증 ] 음량 RMS={rms:.4f}", end="  ")
-        if rms < 0.01:
+        if rms < 0.005:
             print("→ 너무 조용함, 거부")
             return False
 
