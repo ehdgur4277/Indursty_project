@@ -211,7 +211,7 @@ class RealtimePipeline:
 
             else:
                 # ─── IDLE: VAD로 발화 감지 → Whisper로 "피식아" 확인 ─────────
-                self._notify("'피식아'라고 말해주세요.")
+                self._notify("[ 대기 ] '피식아'를 말해주세요.")
 
                 while True:
                     wake_audio = self._listen(stream)
@@ -226,16 +226,17 @@ class RealtimePipeline:
 
                     if not self._verify_wake_word(wake_audio):
                         self._flush(stream)
+                        self._notify("[ 인식 실패 ] '피식아'라고 말해주세요.")
                         continue
 
                     # ─── LISTENING + PROCESSING (최대 2회 재시도) ────────────
-                    self._notify("명령을 말씀해주세요.")
+                    self._notify("[ 명령 대기 ] 명령을 말씀해주세요.")
                     for attempt in range(2):
                         self.vad_model.reset_states()
                         audio = self._listen(stream)
 
                         if audio is None:
-                            self._notify("잘 듣지 못했습니다. 다시 말씀해주세요.")
+                            self._notify("[ 인식 실패 ] 다시 말씀해주세요.")
                             continue
 
                         success = self._process(audio, stream)
@@ -244,9 +245,9 @@ class RealtimePipeline:
                         if success:
                             break
                         if attempt == 0:
-                            self._notify("인식하지 못했습니다. 다시 말씀해주세요.")
+                            self._notify("[ 인식 실패 ] 다시 말씀해주세요.")
 
-                    self._notify("'피식아'라고 말해주세요.")
+                    self._notify("[ 대기 ] '피식아'를 말해주세요.")
 
         except KeyboardInterrupt:
             print("\n[종료] 파이프라인 중단")
