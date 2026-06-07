@@ -36,6 +36,18 @@ def recv_exact(sock, n):
     return buf
 
 
+def flush_buffer(sock):
+    """소켓 버퍼에 쌓인 오디오를 버림 (Enter 이전 오디오 제거)."""
+    sock.setblocking(False)
+    try:
+        while True:
+            sock.recv(65536)
+    except BlockingIOError:
+        pass
+    finally:
+        sock.setblocking(True)
+
+
 def collect_clip(sock) -> np.ndarray:
     """2초 분량 오디오 수신."""
     chunks = []
@@ -87,6 +99,7 @@ def main():
                 print(f"[{i+1}/{args.count}] [연구실 컴퓨터] Enter → 아무 말 하지 말기 (소음 녹음)")
 
             input()
+            flush_buffer(client)        # Enter 이전에 쌓인 오디오 버림
             print("  녹음 중... (2초)")
 
             audio = collect_clip(client)
