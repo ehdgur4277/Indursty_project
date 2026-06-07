@@ -26,6 +26,17 @@ Whisper/finetune/output/
 VAD/output/
 data/*_vad.wav
 
+# 대용량 데이터 (재생성 가능)
+data/tts/
+data/noisy/
+data/common_voice_neg/
+data/kws_eval/
+data/*.m4a
+data/*.wav
+
+# KWS 모델 (gitignore에 이미 *.onnx 있음)
+KWS/oww_model/
+
 # Jupyter
 .ipynb_checkpoints/
 *.ipynb
