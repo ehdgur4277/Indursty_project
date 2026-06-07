@@ -25,32 +25,26 @@
 ```
 노트북 마이크 입력
       │
-      ▼ (bore TCP 터널)
+      ▼  (bore TCP 터널)
   [서버 / Docker]
       │
       ▼
-  VAD (Silero VAD)
-  묵음 구간 필터링
+  VAD (Silero VAD)        ← 묵음 구간 필터링, 발화 시작 감지
       │ 발화 감지 시
       ▼
-  Whisper STT
-  "피식아" 여부 확인
+  Whisper STT ①           ← "피식아"인지 확인
       │ 웨이크워드 확인 시
       ▼
-  "명령을 말씀해주세요"
+  VAD                     ← 명령어 발화 감지
       │
       ▼
-  VAD → Whisper STT
-  명령어 인식
+  Whisper STT ②           ← 명령어 인식
       │
       ▼
-  Levenshtein 퍼지 매칭
+  Levenshtein 퍼지 매칭   ← 인식 결과 → 가장 가까운 명령어
       │
       ▼
-  Task ID → 로봇 전달
-      │
-      ▼
-  결과를 노트북에도 출력
+  Task ID 출력             ← 서버 + 노트북 동시 출력
 ```
 
 ---
