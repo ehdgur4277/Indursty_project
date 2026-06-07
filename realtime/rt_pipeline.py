@@ -95,6 +95,7 @@ class RealtimePipeline:
         _WAKE_VARIANTS = [
             "피식아", "피시가", "피시카", "피싱이야", "피직아",
             "피식야", "비식아", "피식", "비싸", "pc가",
+            "피시각", "이시각", "시각",
         ]
         # 음량이 너무 작으면 Whisper 호출 없이 거부
         rms = float(np.sqrt(np.mean(audio ** 2)))
