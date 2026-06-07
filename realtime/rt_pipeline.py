@@ -94,6 +94,19 @@ class RealtimePipeline:
         print(f"[검증 ] STT: '{text}'  → {'통과' if matched else '거부'}")
         return matched
 
+    # ── 스트림 버퍼 비우기 ────────────────────────────
+    @staticmethod
+    def _flush(stream, seconds: float = 0.5):
+        """처리 중 쌓인 오래된 오디오 버림."""
+        deadline = seconds * SAMPLE_RATE
+        flushed  = 0
+        while flushed < deadline:
+            try:
+                chunk = stream.read(timeout=0.05)
+                flushed += len(chunk)
+            except queue.Empty:
+                break
+
     # ── LISTENING: 발화 끝날 때까지 청크 수집 ───────
     def _listen(self, stream) -> "np.ndarray | None":
         """
@@ -198,11 +211,13 @@ class RealtimePipeline:
 
                     # Whisper로 "피식아" 확인
                     if not self._verify_wake_word(wake_audio):
+                        self._flush(stream)          # 검증 중 쌓인 오디오 버림
                         print("[  -  ] '피식아' 아님, 다시 대기합니다.\n")
                         continue
 
                     # ─── LISTENING: 명령어 수집 ──────────────────────────────
                     print("[웨이크] '피식아' 확인! 명령을 말씀하세요...")
+                    self._flush(stream)              # "피식아" 잔여음 버림
                     self.vad_model.reset_states()
                     audio = self._listen(stream)
 
@@ -213,6 +228,7 @@ class RealtimePipeline:
 
                     # ─── PROCESSING ──────────────────────────────────────────
                     self._process(audio, stream)
+                    self._flush(stream)              # 처리 중 쌓인 오디오 버림
                     print("[ 대기 ] '피식아'를 말해주세요...\n")
 
         except KeyboardInterrupt:
